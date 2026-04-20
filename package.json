@@ -1,0 +1,21 @@
+{
+  "name": "door-to-honey",
+  "version": "1.0.0",
+  "description": "Door to Honey - Artisan Cake Bakery E-commerce Platform",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "start": "python -m http.server 3000"
+  },
+  "keywords": [
+    "bakery",
+    "cakes",
+    "ecommerce",
+    "firebase"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  }
+}

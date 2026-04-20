@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - Door to Honey</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&family=Dancing+Script:wght@600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- USER PAGE -->
+    <div id="user-page" class="page active">
+        <div class="user-topbar">
+            <span class="nav-logo user-logo">DoortoHoney</span>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <span id="userGreet" class="user-greet">Hello, Guest!</span>
+                <button onclick="openCart()" class="user-cart-btn">
+                    🛒 Cart <span id="cartCount" class="user-cart-count">0</span>
+                </button>
+                <button onclick="logout()" class="user-logout-btn">Logout</button>
+            </div>
+        </div>
+        <div class="user-main">
+            <div class="user-tabs">
+                <button class="user-tab-btn active" onclick="showUserTab('shop')" id="tabBtnShop"><i class="fas fa-shopping-bag"></i>
+                    Shop</button>
+                <button class="user-tab-btn" onclick="showUserTab('myorders')" id="tabBtnMyorders"><i class="fas fa-box"></i> My
+                    Orders</button>
+                <button class="user-tab-btn custom-tab-btn" onclick="showUserTab('custom')" id="tabBtnCustom"><i class="fas fa-magic"></i>
+                    Custom Cake</button>
+                <button class="user-tab-btn" onclick="showUserTab('profile')" id="tabBtnProfile"><i class="fas fa-user"></i>
+                    Profile</button>
+            </div>
+
+            <div id="userShopTab">
+                <div style="margin-bottom:32px;">
+                    <h2 class="user-section-title">Our <em class="user-section-em">Cake Menu</em></h2>
+                    <p class="user-section-desc">Add items to cart and place your order!</p>
+                </div>
+                <div class="menu-filter user-menu-filter">
+                    <button class="filter-btn active" onclick="filterUserCakes('all',this)">All</button>
+                    <button class="filter-btn" onclick="filterUserCakes('birthday',this)">Birthday</button>
+                    <button class="filter-btn" onclick="filterUserCakes('wedding',this)">Wedding</button>
+                    <button class="filter-btn" onclick="filterUserCakes('eggless',this)">Eggless</button>
+                    <button class="filter-btn" onclick="filterUserCakes('special',this)">Special</button>
+                </div>
+                <div class="menu-grid" id="userMenuGrid"></div>
+            </div>
+
+            <div id="userOrdersTab" style="display:none;">
+                <div class="user-orders-section">
+                    <h2 class="user-section-title">My <em class="user-section-em">Orders</em></h2>
+                    <p class="user-section-desc">Your regular and custom cake orders appear here.</p>
+                </div>
+                <div id="userOrdersList"></div>
+                <div style="margin-top:32px;">
+                    <h3 class="user-section-title" style="font-size:22px;">Custom <em class="user-section-em">Requests</em></h3>
+                </div>
+                <div id="userCustomOrdersList"></div>
+            </div>
+
+            <!-- CUSTOM CAKE TAB -->
+            <div id="userCustomTab" style="display:none;">
+                <div style="margin-bottom:32px;">
+                    <h2 class="user-section-title">Design Your <em class="user-section-em">Dream Cake</em></h2>
+                    <p class="user-section-desc">Tell us every detail and we'll handcraft it just for you — no order too unique!</p>
+                </div>
+                <div class="custom-cake-form-wrap">
+                    <div class="custom-cake-banner">
+                    <div class="custom-cake-banner-icon"><i class="fas fa-birthday-cake"></i></div>
+                        <div>
+                            <h3>Your Wish, Our Creation</h3>
+                            <p>Fill in the form below and our bakers will get back to you within 24 hours with a quote and confirmation.</p>
+                        </div>
+                    </div>
+                    <form id="customCakeForm" class="custom-cake-form" onsubmit="return false;">
+                        <div class="custom-form-grid">
+                            <!-- Occasion -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-birthday-cake"></i> Occasion *</label>
+                                <select id="cakeOccasion" class="custom-form-input" required>
+                                    <option value="">Select occasion</option>
+                                    <option value="Birthday">Birthday</option>
+                                    <option value="Wedding">Wedding</option>
+                                    <option value="Anniversary">Anniversary</option>
+                                    <option value="Baby Shower">Baby Shower</option>
+                                    <option value="Graduation">Graduation</option>
+                                    <option value="Corporate">Corporate Event</option>
+                                    <option value="Festival">Festival / Pooja</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <!-- Flavor -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-ice-cream"></i> Flavor * <span class="custom-form-note">(can be multi-tier)</span></label>
+                                <select id="cakeFlavor" class="custom-form-input" required>
+                                    <option value="">Select flavor</option>
+                                    <option value="Chocolate">Chocolate</option>
+                                    <option value="Vanilla">Vanilla</option>
+                                    <option value="Red Velvet">Red Velvet</option>
+                                    <option value="Strawberry">Strawberry</option>
+                                    <option value="Mango">Mango</option>
+                                    <option value="Butterscotch">Butterscotch</option>
+                                    <option value="Black Forest">Black Forest</option>
+                                    <option value="Pineapple">Pineapple</option>
+                                    <option value="Lemon">Lemon</option>
+                                    <option value="Mixed / Custom">Mixed / Custom (specify in notes)</option>
+                                </select>
+                            </div>
+                            <!-- Weight/Size -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-weight"></i> Cake Weight / Size *</label>
+                                <select id="cakeWeight" class="custom-form-input" required>
+                                    <option value="">Select size</option>
+                                    <option value="0.5 kg">0.5 kg (serves 4–6)</option>
+                                    <option value="1 kg">1 kg (serves 8–10)</option>
+                                    <option value="1.5 kg">1.5 kg (serves 12–15)</option>
+                                    <option value="2 kg">2 kg (serves 18–20)</option>
+                                    <option value="3 kg">3 kg (serves 25–30)</option>
+                                    <option value="4 kg">4 kg (serves 35–40)</option>
+                                    <option value="5+ kg">5+ kg (custom, specify in notes)</option>
+                                </select>
+                            </div>
+                            <!-- Tiers -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-layer-group"></i> Number of Tiers</label>
+                                <select id="cakeTiers" class="custom-form-input">
+                                    <option value="1">1 Tier</option>
+                                    <option value="2">2 Tiers</option>
+                                    <option value="3">3 Tiers</option>
+                                    <option value="4+">4+ Tiers (specify in notes)</option>
+                                </select>
+                            </div>
+                            <!-- Dietary -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-leaf"></i> Dietary Requirement</label>
+                                <select id="cakeDietary" class="custom-form-input">
+                                    <option value="None">No specific requirement</option>
+                                    <option value="Eggless">Eggless</option>
+                                    <option value="Vegan">Vegan</option>
+                                    <option value="Sugar-free">Sugar-free</option>
+                                    <option value="Gluten-free">Gluten-free</option>
+                                    <option value="Nut-free">Nut-free</option>
+                                </select>
+                            </div>
+                            <!-- Budget -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-rupee-sign"></i> Approximate Budget</label>
+                                <select id="cakeBudget" class="custom-form-input">
+                                    <option value="">Select budget range</option>
+                                    <option value="₹500 – ₹1,000">₹500 – ₹1,000</option>
+                                    <option value="₹1,000 – ₹2,500">₹1,000 – ₹2,500</option>
+                                    <option value="₹2,500 – ₹5,000">₹2,500 – ₹5,000</option>
+                                    <option value="₹5,000 – ₹10,000">₹5,000 – ₹10,000</option>
+                                    <option value="₹10,000+">₹10,000+ (premium)</option>
+                                </select>
+                            </div>
+                            <!-- Delivery Date -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-calendar-alt"></i> Delivery Date *</label>
+                                <input type="date" id="cakeDeliveryDate" class="custom-form-input" required min="">
+                            </div>
+                            <!-- Phone -->
+                            <div class="custom-form-group">
+                                <label class="custom-form-label"><i class="fas fa-phone"></i> Contact Phone *</label>
+                                <input type="tel" id="cakePhone" class="custom-form-input" placeholder="+91 98765 43210" required pattern="[0-9+\s\-]{10,15}">
+                            </div>
+                        </div>
+                        <!-- Design Description - full width -->
+                        <div class="custom-form-group custom-form-full">
+                            <label class="custom-form-label"><i class="fas fa-paint-brush"></i> Design Description *</label>
+                            <textarea id="cakeDesign" class="custom-form-input custom-form-textarea" rows="4"
+                                placeholder="Describe your dream cake — theme, colours, characters, inscription, special decorations..." required></textarea>
+                        </div>
+                        <!-- Additional Notes - full width -->
+                        <div class="custom-form-group custom-form-full">
+                            <label class="custom-form-label"><i class="fas fa-sticky-note"></i> Additional Notes</label>
+                            <textarea id="cakeNotes" class="custom-form-input custom-form-textarea" rows="3"
+                                placeholder="Allergen info, delivery address, special instructions..."></textarea>
+                        </div>
+                        <div class="custom-form-actions">
+                            <button type="button" class="btn-primary custom-submit-btn" onclick="submitCustomCakeOrder()">
+                                <i class="fas fa-paper-plane"></i> Submit Custom Request
+                            </button>
+                            <p class="custom-form-disclaimer">Our team will review your request and contact you within 24 hours. No payment is required at this stage.</p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+
+            <div id="userProfileTab" style="display:none;">
+                <div style="margin-bottom:32px;">
+                    <h2 class="user-section-title">My <em class="user-section-em">Profile</em></h2>
+                    <p class="user-section-desc">Manage your account information</p>
+                </div>
+                <div class="profile-container">
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <div class="profile-avatar"><i class="fas fa-user"></i></div>
+                            <h3 id="profileName" class="profile-header-name">User Name</h3>
+                            <p id="profileEmail" class="profile-header-email">user@email.com</p>
+                        </div>
+                        <div class="profile-details">
+                            <div class="profile-field">
+                                <label>Full Name</label>
+                                <p id="displayName">—</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Email Address</label>
+                                <p id="displayEmail">—</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>City</label>
+                                <p id="displayCity">—</p>
+                            </div>
+                        </div>
+                        <button class="btn-primary profile-edit-btn" onclick="openEditProfileModal()"><i class="fas fa-edit"></i> Edit Profile</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CART SIDEBAR -->
+    <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-title">
+            <i class="fas fa-shopping-cart"></i> Your Cart
+            <button onclick="closeCart()" class="cart-close-btn">✕</button>
+        </div>
+        <div id="cartItems"></div>
+        <div class="cart-total">Total: <span id="cartTotal">₹0</span></div>
+        <button class="btn-primary cart-placeorder-btn" onclick="placeOrder()"><i class="fas fa-check"></i> Place Order</button>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div class="modal-overlay" id="editProfileModal">
+        <div class="modal-box modal-box-max500">
+            <button class="modal-close" onclick="closeEditProfileModal()">✕</button>
+            <h2 class="modal-title-edit">Edit Profile</h2>
+            <div class="modal-edit-fields">
+                <div>
+                    <label class="admin-label">Full Name</label>
+                    <input type="text" id="editProfileName" placeholder="Your name" class="user-input">
+                </div>
+                <div>
+                    <label class="admin-label">Email Address</label>
+                    <input type="email" id="editProfileEmail" placeholder="Your email" class="user-input">
+                </div>
+                <div>
+                    <label class="admin-label">City</label>
+                    <input type="text" id="editProfileCity" placeholder="Your city" class="user-input">
+                </div>
+                <div class="modal-actions-row">
+                    <button class="btn-primary modal-save-btn" onclick="saveProfileChanges()"><i class="fas fa-check"></i> Save Changes</button>
+                    <button class="btn-outline modal-cancel-btn" onclick="closeEditProfileModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="firebase-auth.js"></script>
+    <script type="module" src="firebase-db.js"></script>
+    <script type="module" src="common.js"></script>
+    <script type="module" src="user.js"></script>
+</body>
+
+</html>

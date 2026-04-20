@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Door to Honey</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&family=Dancing+Script:wght@600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- ADMIN PAGE -->
+    <div id="admin-page" class="page active">
+        <div class="admin-layout">
+            <div class="admin-sidebar">
+                <span class="nav-logo">DoortoHoney</span>
+                <button id="adminNavToggle" class="admin-nav-toggle" aria-label="Toggle admin navigation" aria-expanded="false"><i class="fas fa-bars"></i></button>
+                <div class="admin-nav-buttons">
+                    <button class="sidebar-btn active" onclick="showAdminTab('dashboard')"><span class="sidebar-icon"><i class="fas fa-chart-line"></i></span> Dashboard</button>
+                    <button class="sidebar-btn" onclick="showAdminTab('items')"><span class="sidebar-icon"><i class="fas fa-list"></i></span> Manage Items</button>
+                    <button class="sidebar-btn" onclick="showAdminTab('add')"><span class="sidebar-icon"><i class="fas fa-plus"></i></span> Add Item</button>
+                    <button class="sidebar-btn" onclick="showAdminTab('orders')"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> Orders</button>
+                    <button class="sidebar-btn" onclick="showAdminTab('custom')"><span class="sidebar-icon"><i class="fas fa-magic"></i></span> Custom Requests</button>
+                    <button class="sidebar-btn sidebar-logout" onclick="logout()"><span class="sidebar-icon"><i class="fas fa-sign-out-alt"></i></span> Logout</button>
+                </div>
+            </div>
+            <div class="admin-main">
+                <div class="admin-header">
+                    <h1 id="adminTabTitle" class="admin-title">Dashboard</h1>
+                </div>
+
+                <div id="tab-dashboard" class="admin-tab active">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-box"></i></div>
+                            <div>
+                                <div class="stat-value" id="statItems">12</div>
+                                <div class="stat-label">Total Items</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-shopping-bag"></i></div>
+                            <div>
+                                <div class="stat-value" id="statOrders">24</div>
+                                <div class="stat-label">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                            <div>
+                                <div class="stat-value" id="statPending">5</div>
+                                <div class="stat-label">Pending Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                            <div>
+                                <div class="stat-value" id="statRevenue">₹28.5K</div>
+                                <div class="stat-label">Total Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-panel-box">
+                        <h3 class="admin-panel-title">Recent Orders</h3>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-th">Order ID</th>
+                                        <th class="admin-table-th">Customer</th>
+                                        <th class="admin-table-th">Items</th>
+                                        <th class="admin-table-th">Amount</th>
+                                        <th class="admin-table-th">Status</th>
+                                        <th class="admin-table-th">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashOrdersTable">
+                                    <tr>
+                                        <td colspan="6" class="admin-table-td-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-items" class="admin-tab">
+                    <div class="admin-panel-box">
+                        <h3 class="admin-panel-title">All Items</h3>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-th">Image</th>
+                                        <th class="admin-table-th">Name</th>
+                                        <th class="admin-table-th">Category</th>
+                                        <th class="admin-table-th">Price</th>
+                                        <th class="admin-table-th">Status</th>
+                                        <th class="admin-table-th">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminItemsTable">
+                                    <tr>
+                                        <td colspan="6" class="admin-table-td-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-add" class="admin-tab">
+                    <div class="admin-panel-box max900">
+                        <h3 id="addItemTitle" class="admin-panel-title-large">Add New Item</h3>
+                        <div class="add-item-form">
+                            <div>
+                                <label class="admin-label">Item Name*</label>
+                                <input type="text" id="itemName" placeholder="e.g. Chocolate Cake" class="admin-input">
+                            </div>
+                            <div>
+                                <label class="admin-label">Upload Image</label>
+                                <div id="dragDropZone" class="admin-dragdrop"
+                                    onmouseover="this.style.borderColor='var(--honey)';this.style.background='white';"
+                                    onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--cream)';">
+                                    <i class="fas fa-cloud-upload-alt admin-upload-icon"></i>
+                                    <p class="admin-upload-p">Drag & Drop Image Here</p>
+                                    <p class="admin-upload-hint">or click to select (JPG, PNG, Max 5MB)</p>
+                                </div>
+                                <input type="file" id="itemImage" accept="image/*" style="display:none;">
+                                <div id="imagePreview" class="admin-img-preview">
+                                    <img id="previewImg">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="admin-label">Category</label>
+                                <select id="itemCategory" class="admin-select">
+                                    <option value="birthday">Birthday</option>
+                                    <option value="wedding">Wedding</option>
+                                    <option value="eggless">Eggless</option>
+                                    <option value="special">Special</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="admin-label">Price*</label>
+                                <input type="number" id="itemPrice" placeholder="₹999" class="admin-input">
+                            </div>
+                            <div>
+                                <label class="admin-label">Description*</label>
+                                <textarea id="itemDesc" placeholder="Item description" class="admin-textarea"></textarea>
+                            </div>
+                            <div>
+                                <label class="admin-label">Background</label>
+                                <select id="itemBg" class="admin-select">
+                                    <option value="bg1">Warm</option>
+                                    <option value="bg2">Rose</option>
+                                    <option value="bg3">Green</option>
+                                    <option value="bg4">Chocolate</option>
+                                    <option value="bg5">Mango</option>
+                                    <option value="bg6">Lavender</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="admin-label">Unit</label>
+                                <input type="text" id="itemUnit" placeholder="kg" value="" class="admin-input">
+                            </div>
+                            <div class="admin-flex-row">
+                                <button id="saveItemBtn" class="btn-primary admin-btn-primary" onclick="saveItem()"><i class="fas fa-check"></i> Add Item ✓</button>
+                                <button id="cancelEditBtn" class="btn-outline admin-btn-cancel" onclick="cancelEdit()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-orders" class="admin-tab">
+                    <div class="admin-panel-box">
+                        <h3 class="admin-panel-title">All Orders</h3>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-th">Order ID</th>
+                                        <th class="admin-table-th">Customer</th>
+                                        <th class="admin-table-th">Items</th>
+                                        <th class="admin-table-th">Amount</th>
+                                        <th class="admin-table-th">Date</th>
+                                        <th class="admin-table-th">Status</th>
+                                        <th class="admin-table-th">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminOrdersTable">
+                                    <tr>
+                                        <td colspan="7" class="admin-table-td-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOM REQUESTS TAB -->
+                <div id="tab-custom" class="admin-tab">
+                    <div class="admin-panel-box">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                            <h3 class="admin-panel-title" style="margin:0;"><i class="fas fa-pencil-ruler"></i> Custom Cake Requests</h3>
+                            <button onclick="loadAdminCustomOrders()" class="action-btn btn-edit"><i class="fas fa-sync-alt"></i> Refresh</button>
+                        </div>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-th">ID</th>
+                                        <th class="admin-table-th">Customer</th>
+                                        <th class="admin-table-th">Occasion</th>
+                                        <th class="admin-table-th">Flavor</th>
+                                        <th class="admin-table-th">Size</th>
+                                        <th class="admin-table-th">Delivery</th>
+                                        <th class="admin-table-th">Budget</th>
+                                        <th class="admin-table-th">Status</th>
+                                        <th class="admin-table-th">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminCustomOrdersTable">
+                                    <tr>
+                                        <td colspan="9" class="admin-table-td-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="firebase-auth.js"></script>
+    <script type="module" src="firebase-db.js"></script>
+    <script type="module" src="common.js"></script>
+    <script type="module" src="admin.js"></script>
+</body>
+
+</html>
