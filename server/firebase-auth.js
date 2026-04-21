@@ -5,7 +5,16 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    sendEmailVerification,
+    sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+    collection,
+    query,
+    where,
+    getDocs,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "./firebase-config.js";
 import { createUserInFirestore, getUserFromFirestore } from "./firebase-db.js";
 
 const ADMIN_EMAIL = "madhuluck8412@gmail.com";
@@ -17,17 +26,24 @@ export async function registerUserWithFirebase(name, email, password, city) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Save additional user data to Firestore
+        // Send email verification link
+        await sendEmailVerification(user);
+
+        // Save additional user data to Firestore (mark as unverified)
         await createUserInFirestore(user.uid, {
             id: user.uid,
             name,
             email,
             city,
             role: "user",
+            emailVerified: false,
             createdAt: new Date().toISOString(),
         });
 
-        return { success: true, user: { uid: user.uid, name, email, city, role: "user" } };
+        // Sign out immediately — user must verify email before logging in
+        await signOut(auth);
+
+        return { success: true, user: { uid: user.uid, name, email, city, role: "user" }, verificationSent: true };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -37,6 +53,13 @@ export async function loginUserWithFirebase(email, password) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+
+        // Check if email is verified
+        if (!user.emailVerified) {
+            // Sign out unverified user
+            await signOut(auth);
+            return { success: false, error: "Email not verified. Please check your inbox and click the verification link.", emailUnverified: true, email: email };
+        }
 
         // Get user data from Firestore
         let userData = await getUserFromFirestore(user.uid);
@@ -50,10 +73,17 @@ export async function loginUserWithFirebase(email, password) {
                 email: email,
                 city: "Not specified",
                 role: "user",
+                emailVerified: true,
                 createdAt: new Date().toISOString(),
             };
             // Save to Firestore for future logins
             await createUserInFirestore(user.uid, userData);
+        }
+
+        // Update emailVerified in Firestore if needed
+        if (!userData.emailVerified) {
+            userData.emailVerified = true;
+            await createUserInFirestore(user.uid, { ...userData, emailVerified: true });
         }
 
         return { success: true, user: userData };
@@ -114,6 +144,55 @@ export async function logoutUserFromFirebase() {
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
+    }
+}
+
+// Resend email verification link
+export async function resendVerificationEmail(email, password) {
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        if (user.emailVerified) {
+            await signOut(auth);
+            return { success: false, error: "Email is already verified. Please sign in." };
+        }
+
+        await sendEmailVerification(user);
+        await signOut(auth);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// Forgot Password — sends Firebase password reset email
+export async function resetPasswordWithFirebase(email) {
+    try {
+        // Check if user exists in Firestore first
+        const userExists = await findUserByEmail(email);
+        if (!userExists) {
+            return { success: false, error: "No account found with this email address." };
+        }
+
+        await sendPasswordResetEmail(auth, email);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// Find user by email in Firestore
+export async function findUserByEmail(email) {
+    try {
+        const q = query(collection(db, "users"), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) return null;
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+    } catch (error) {
+        console.error("Error finding user by email:", error);
+        return null;
     }
 }
 

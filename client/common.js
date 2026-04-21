@@ -4,7 +4,9 @@ import {
     loginUserWithFirebase,
     loginAdminWithFirebase,
     logoutUserFromFirebase,
-    watchAuthState
+    watchAuthState,
+    resendVerificationEmail,
+    resetPasswordWithFirebase
 } from "../server/firebase-auth.js";
 import {
     createOrderInFirestore,
@@ -244,27 +246,54 @@ function closeModal() {
     if (modal) modal.classList.remove("open");
 }
 
+function hideAllAuthViews() {
+    const views = ["loginView", "registerView", "verificationSentView", "forgotPasswordView"];
+    views.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+    // Reset forgot password sub-steps
+    const step1 = document.getElementById("forgotStep1");
+    const step2 = document.getElementById("forgotStep2");
+    if (step1) step1.style.display = "block";
+    if (step2) step2.style.display = "none";
+    // Hide unverified notice
+    const notice = document.getElementById("unverifiedNotice");
+    if (notice) notice.style.display = "none";
+}
+
 function showRegister() {
-    const loginView = document.getElementById("loginView");
+    hideAllAuthViews();
     const registerView = document.getElementById("registerView");
-    if (loginView && registerView) {
-        loginView.style.display = "none";
-        registerView.style.display = "block";
-    }
+    if (registerView) registerView.style.display = "block";
 }
 
 function showLogin() {
+    hideAllAuthViews();
     const loginView = document.getElementById("loginView");
-    const registerView = document.getElementById("registerView");
-    if (loginView && registerView) {
-        loginView.style.display = "block";
-        registerView.style.display = "none";
-    }
+    if (loginView) loginView.style.display = "block";
 }
+
+function showVerificationSent() {
+    hideAllAuthViews();
+    const view = document.getElementById("verificationSentView");
+    if (view) view.style.display = "block";
+}
+
+function showForgotPassword() {
+    hideAllAuthViews();
+    const view = document.getElementById("forgotPasswordView");
+    if (view) view.style.display = "block";
+}
+
+// Store credentials temporarily for resend verification
+let _pendingVerifEmail = "";
+let _pendingVerifPassword = "";
 
 function handleLogin() {
     const emailEl = document.getElementById("loginEmail");
     const passwordEl = document.getElementById("loginPassword");
+    const loginBtn = document.getElementById("loginBtn");
 
     if (!emailEl || !passwordEl) return;
 
@@ -276,9 +305,16 @@ function handleLogin() {
         return;
     }
 
+    // Hide unverified notice if visible
+    const notice = document.getElementById("unverifiedNotice");
+    if (notice) notice.style.display = "none";
+
+    if (loginBtn) { loginBtn.disabled = true; loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
+
     if (selectedRole === "admin") {
         // Admin login with Firebase
         loginAdminWithFirebase(email, password).then((result) => {
+            if (loginBtn) { loginBtn.disabled = false; loginBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Sign In'; }
             if (result.success) {
                 state.currentUser = result.user;
                 closeModal();
@@ -297,6 +333,7 @@ function handleLogin() {
 
     // User login with Firebase
     loginUserWithFirebase(email, password).then((result) => {
+        if (loginBtn) { loginBtn.disabled = false; loginBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Sign In'; }
         if (result.success && result.user) {
             state.currentUser = result.user;
             closeModal();
@@ -307,6 +344,12 @@ function handleLogin() {
             setTimeout(() => {
                 window.location.href = "user.html";
             }, 500);
+        } else if (result.emailUnverified) {
+            // Show unverified notice with resend button
+            _pendingVerifEmail = email;
+            _pendingVerifPassword = password;
+            if (notice) notice.style.display = "flex";
+            toast("Email not verified. Check your inbox.");
         } else {
             toast(result.error || "Invalid email or password");
         }
@@ -318,6 +361,7 @@ function handleRegister() {
     const emailEl = document.getElementById("regEmail");
     const passwordEl = document.getElementById("regPassword");
     const cityEl = document.getElementById("regCity");
+    const registerBtn = document.getElementById("registerBtn");
 
     if (!nameEl || !emailEl || !passwordEl || !cityEl) return;
 
@@ -335,21 +379,71 @@ function handleRegister() {
         return;
     }
 
-    // Register with Firebase
+    if (registerBtn) { registerBtn.disabled = true; registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...'; }
+
+    // Register with Firebase — sends verification email, does NOT log in
     registerUserWithFirebase(name, email, password, city).then((result) => {
-        if (result.success) {
-            state.currentUser = result.user;
-            closeModal();
-            toast("Account created! Welcome " + name.split(" ")[0] + "!");
+        if (registerBtn) { registerBtn.disabled = false; registerBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Create Account'; }
+        if (result.success && result.verificationSent) {
+            // Show verification sent view
             nameEl.value = "";
             emailEl.value = "";
             passwordEl.value = "";
             cityEl.value = "";
-            setTimeout(() => {
-                window.location.href = "user.html";
-            }, 500);
+            toast("Verification email sent! Please check your inbox.");
+            showVerificationSent();
         } else {
             toast(result.error || "Registration failed");
+        }
+    });
+}
+
+// Resend verification email
+function handleResendVerification() {
+    if (!_pendingVerifEmail || !_pendingVerifPassword) {
+        toast("Please try logging in again");
+        return;
+    }
+
+    const btn = document.getElementById("resendVerifBtn");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
+
+    resendVerificationEmail(_pendingVerifEmail, _pendingVerifPassword).then((result) => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Verification Email'; }
+        if (result.success) {
+            toast("Verification email sent! Check your inbox.");
+        } else {
+            toast(result.error || "Failed to resend verification email");
+        }
+    });
+}
+
+// Forgot password flow
+function handleForgotPassword() {
+    const emailEl = document.getElementById("forgotEmail");
+    const forgotBtn = document.getElementById("forgotBtn");
+
+    if (!emailEl) return;
+    const email = emailEl.value.trim();
+
+    if (!email) {
+        toast("Please enter your email address");
+        return;
+    }
+
+    if (forgotBtn) { forgotBtn.disabled = true; forgotBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
+
+    resetPasswordWithFirebase(email).then((result) => {
+        if (forgotBtn) { forgotBtn.disabled = false; forgotBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reset Link'; }
+        if (result.success) {
+            // Show success step
+            const step1 = document.getElementById("forgotStep1");
+            const step2 = document.getElementById("forgotStep2");
+            if (step1) step1.style.display = "none";
+            if (step2) step2.style.display = "block";
+            toast("Password reset link sent!");
+        } else {
+            toast(result.error || "Failed to send reset link");
         }
     });
 }
@@ -515,6 +609,10 @@ window.scrollToSection = scrollToSection;
 window.setRole = setRole;
 window.showRegister = showRegister;
 window.showLogin = showLogin;
+window.showForgotPassword = showForgotPassword;
+window.showVerificationSent = showVerificationSent;
+window.handleResendVerification = handleResendVerification;
+window.handleForgotPassword = handleForgotPassword;
 window.updateCartUI = updateCartUI;
 window.toast = toast;
 window.genId = genId;
@@ -649,6 +747,10 @@ export {
     setRole,
     showRegister,
     showLogin,
+    showForgotPassword,
+    showVerificationSent,
+    handleResendVerification,
+    handleForgotPassword,
     updateCartUI,
     toast,
     genId,

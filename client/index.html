@@ -307,6 +307,8 @@
         <div class="modal-overlay" id="authModal">
             <div class="modal-box">
                 <button class="modal-close" onclick="closeModal()">✕</button>
+
+                <!-- LOGIN VIEW -->
                 <div id="loginView">
                     <div class="modal-title">Welcome Back 🍯</div>
                     <div class="modal-sub">Sign in to your account</div>
@@ -320,10 +322,26 @@
                             placeholder="you@example.com"></div>
                     <div class="form-group"><label>Password</label><input type="password" id="loginPassword"
                             placeholder="••••••••"></div>
-                    <button class="form-submit" onclick="handleLogin()"><i class="fas fa-arrow-right"></i> Sign
+                    <div class="auth-extras">
+                        <a class="forgot-link" onclick="showForgotPassword()">Forgot Password?</a>
+                    </div>
+                    <button class="form-submit" onclick="handleLogin()" id="loginBtn"><i class="fas fa-arrow-right"></i> Sign
                         In</button>
                     <div class="modal-switch">Don't have an account? <a onclick="showRegister()">Create one</a></div>
+
+                    <!-- Unverified email notice (hidden by default) -->
+                    <div id="unverifiedNotice" class="auth-notice auth-notice-warning" style="display:none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <p>Your email is not verified yet.</p>
+                            <button class="resend-link-btn" onclick="handleResendVerification()" id="resendVerifBtn">
+                                <i class="fas fa-paper-plane"></i> Resend Verification Email
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- REGISTER VIEW -->
                 <div id="registerView" class="d-none">
                     <div class="modal-title">Join Us</div>
                     <div class="modal-sub">Create your account</div>
@@ -335,10 +353,54 @@
                             placeholder="Min 6 characters"></div>
                     <div class="form-group"><label>City</label><input type="text" id="regCity" placeholder="Your city">
                     </div>
-                    <button class="form-submit" onclick="handleRegister()"><i class="fas fa-arrow-right"></i> Create
+                    <button class="form-submit" onclick="handleRegister()" id="registerBtn"><i class="fas fa-arrow-right"></i> Create
                         Account</button>
                     <div class="modal-switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
                 </div>
+
+                <!-- EMAIL VERIFICATION SENT VIEW -->
+                <div id="verificationSentView" style="display:none;">
+                    <div class="auth-success-icon"><i class="fas fa-envelope-open-text"></i></div>
+                    <div class="modal-title">Check Your Email ✉️</div>
+                    <div class="modal-sub">We've sent a verification link to your email address.</div>
+                    <div class="auth-notice auth-notice-info">
+                        <i class="fas fa-info-circle"></i>
+                        <div>
+                            <p>Click the link in your email to verify your account, then come back and sign in.</p>
+                            <p class="auth-notice-small">Can't find it? Check your spam folder.</p>
+                        </div>
+                    </div>
+                    <button class="form-submit" onclick="showLogin()"><i class="fas fa-arrow-right"></i> Go to Sign In</button>
+                </div>
+
+                <!-- FORGOT PASSWORD VIEW -->
+                <div id="forgotPasswordView" style="display:none;">
+                    <!-- Step 1: Enter email -->
+                    <div id="forgotStep1">
+                        <div class="auth-success-icon auth-icon-amber"><i class="fas fa-key"></i></div>
+                        <div class="modal-title">Forgot Password</div>
+                        <div class="modal-sub">Enter your registered email and we'll send a reset link.</div>
+                        <div class="form-group"><label>Email Address</label><input type="email" id="forgotEmail"
+                                placeholder="you@example.com"></div>
+                        <button class="form-submit" onclick="handleForgotPassword()" id="forgotBtn"><i class="fas fa-paper-plane"></i> Send Reset Link</button>
+                        <div class="modal-switch"><a onclick="showLogin()"><i class="fas fa-arrow-left"></i> Back to Sign In</a></div>
+                    </div>
+                    <!-- Step 2: Success -->
+                    <div id="forgotStep2" style="display:none;">
+                        <div class="auth-success-icon auth-icon-green"><i class="fas fa-check-circle"></i></div>
+                        <div class="modal-title">Reset Link Sent! 🎉</div>
+                        <div class="modal-sub">We've sent a password reset link to your email.</div>
+                        <div class="auth-notice auth-notice-info">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <p>Click the link in your email to set a new password, then come back and sign in.</p>
+                                <p class="auth-notice-small">Can't find it? Check your spam folder.</p>
+                            </div>
+                        </div>
+                        <button class="form-submit" onclick="showLogin()"><i class="fas fa-arrow-right"></i> Back to Sign In</button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
