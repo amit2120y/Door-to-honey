@@ -125,7 +125,6 @@ let state = {
 // Watch for auth state changes
 watchAuthState((user) => {
     if (user) {
-        console.log("Admin: madhuluck8412@gmail.com / madhu0099");
         localStorage.setItem("currentUser", JSON.stringify(user));
     } else {
         state.currentUser = null;
@@ -608,9 +607,7 @@ function placeOrder() {
     });
 }
 
-// Hint credentials
-console.log("Admin: madhuluck8414@gmail.com / madhu0099");
-console.log("User: user@honey.com / 123456");
+// Hint credentials removed for security
 
 // ========== EXPOSE TO GLOBAL SCOPE ==========
 // Make functions accessible from HTML onclick handlers and other modules
