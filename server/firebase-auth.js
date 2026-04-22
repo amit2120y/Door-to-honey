@@ -7,6 +7,8 @@ import {
     onAuthStateChanged,
     sendEmailVerification,
     sendPasswordResetEmail,
+    GoogleAuthProvider,
+    signInWithPopup,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     collection,
@@ -209,4 +211,36 @@ export function watchAuthState(callback) {
             callback(null);
         }
     });
+}
+
+export async function loginWithGoogle() {
+    try {
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(auth, provider);
+        const user = userCredential.user;
+
+        // Get user data from Firestore
+        let userData = await getUserFromFirestore(user.uid);
+
+        // If user document doesn't exist, create it
+        if (!userData) {
+            userData = {
+                id: user.uid,
+                uid: user.uid,
+                name: user.displayName || user.email.split("@")[0],
+                email: user.email,
+                city: "Not specified",
+                role: "user",
+                emailVerified: true,
+                createdAt: new Date().toISOString(),
+            };
+            // Save to Firestore
+            await createUserInFirestore(user.uid, userData);
+        }
+
+        return { success: true, user: userData };
+    } catch (error) {
+        console.error("Google login error:", error);
+        return { success: false, error: error.message };
+    }
 }

@@ -6,7 +6,8 @@ import {
     logoutUserFromFirebase,
     watchAuthState,
     resendVerificationEmail,
-    resetPasswordWithFirebase
+    resetPasswordWithFirebase,
+    loginWithGoogle
 } from "../server/firebase-auth.js";
 import {
     createOrderInFirestore,
@@ -398,6 +399,26 @@ function handleRegister() {
     });
 }
 
+function handleGoogleLogin() {
+    loginWithGoogle().then((result) => {
+        if (result.success && result.user) {
+            state.currentUser = result.user;
+            closeModal();
+            const userName = result.user.name ? result.user.name.split(" ")[0] : "User";
+            toast("Welcome, " + userName + "!");
+            setTimeout(() => {
+                if (result.user.role === "admin") {
+                    window.location.href = "admin.html";
+                } else {
+                    window.location.href = "user.html";
+                }
+            }, 500);
+        } else {
+            toast(result.error || "Google Sign-in failed");
+        }
+    });
+}
+
 // Resend verification email
 function handleResendVerification() {
     if (!_pendingVerifEmail || !_pendingVerifPassword) {
@@ -599,6 +620,7 @@ window.closeModal = closeModal;
 window.closeCart = closeCart;
 window.openCart = openCart;
 window.handleLogin = handleLogin;
+window.handleGoogleLogin = handleGoogleLogin;
 window.handleRegister = handleRegister;
 window.logout = logout;
 window.addToCart = addToCart;
@@ -754,5 +776,6 @@ export {
     updateCartUI,
     toast,
     genId,
-    syncItemsFromFirestore
+    syncItemsFromFirestore,
+    handleGoogleLogin
 };
