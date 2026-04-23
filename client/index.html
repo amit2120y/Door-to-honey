@@ -363,6 +363,8 @@
                             placeholder="you@example.com"></div>
                     <div class="form-group"><label>Password</label><input type="password" id="regPassword"
                             placeholder="Min 6 characters"></div>
+                    <div class="form-group"><label>Phone Number</label><input type="tel" id="regPhone"
+                            placeholder="+91 9876543210"></div>
                     <div class="form-group"><label>City</label><input type="text" id="regCity" placeholder="Your city">
                     </div>
                     <button class="form-submit" onclick="handleRegister()" id="registerBtn"><i class="fas fa-arrow-right"></i> Create
@@ -413,6 +415,29 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- CHECKOUT MODAL -->
+        <div id="checkoutModal" class="modal-overlay">
+            <div class="modal-box" style="max-width: 500px;">
+                <span class="modal-close" id="closeCheckout">&times;</span>
+                <div class="modal-title">Complete Your Order</div>
+                <div class="modal-sub">Please provide your delivery address below.</div>
+                
+                <div class="modal-body" style="margin-top: 20px;">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <textarea id="orderAddress" placeholder="Enter your full delivery address here..." style="width: 100%; min-height: 100px; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; font-family: inherit; resize: none;"></textarea>
+                    </div>
+                    
+                    <button type="button" id="getCurrentLocation" style="width: 100%; padding: 10px; background: rgba(195,130,31,0.08); border: 1px dashed var(--honey); color: var(--honey-dark); border-radius: 10px; margin-bottom: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600;">
+                        <i class="fas fa-location-arrow"></i> Use Current Location
+                    </button>
+
+                    <button id="confirmOrderBtn" class="form-submit" style="background: var(--brown);">
+                        <i class="fas fa-shopping-bag"></i> Confirm & Place Order
+                    </button>
+                </div>
             </div>
         </div>
 

@@ -124,13 +124,13 @@ let state = {
 
 // Watch for auth state changes
 watchAuthState((user) => {
+    state.currentUser = user; 
     if (user) {
         localStorage.setItem("currentUser", JSON.stringify(user));
     } else {
-        state.currentUser = null;
         localStorage.removeItem("currentUser");
     }
-    console.log("Auth state changed:", user);
+    console.log("Auth state changed & state updated:", state.currentUser);
 });
 
 // Restore user from localStorage on page load
@@ -361,16 +361,18 @@ function handleRegister() {
     const emailEl = document.getElementById("regEmail");
     const passwordEl = document.getElementById("regPassword");
     const cityEl = document.getElementById("regCity");
+    const phoneEl = document.getElementById("regPhone");
     const registerBtn = document.getElementById("registerBtn");
 
-    if (!nameEl || !emailEl || !passwordEl || !cityEl) return;
+    if (!nameEl || !emailEl || !passwordEl || !cityEl || !phoneEl) return;
 
     const name = nameEl.value.trim();
     const email = emailEl.value.trim();
     const password = passwordEl.value;
     const city = cityEl.value.trim();
+    const phone = phoneEl.value.trim();
 
-    if (!name || !email || !password || !city) {
+    if (!name || !email || !password || !city || !phone) {
         toast("Please fill all fields");
         return;
     }
@@ -382,7 +384,7 @@ function handleRegister() {
     if (registerBtn) { registerBtn.disabled = true; registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...'; }
 
     // Register with Firebase — sends verification email, does NOT log in
-    registerUserWithFirebase(name, email, password, city).then((result) => {
+    registerUserWithFirebase(name, email, password, city, phone).then((result) => {
         if (registerBtn) { registerBtn.disabled = false; registerBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Create Account'; }
         if (result.success && result.verificationSent) {
             // Show verification sent view
@@ -390,6 +392,7 @@ function handleRegister() {
             emailEl.value = "";
             passwordEl.value = "";
             cityEl.value = "";
+            phoneEl.value = "";
             toast("Verification email sent! Please check your inbox.");
             showVerificationSent();
         } else {
@@ -573,13 +576,50 @@ function placeOrder() {
     }
     if (!state.currentUser) {
         toast("Please login first");
+        openModal('login');
         return;
     }
+
+    if (!state.currentUser.phone || state.currentUser.phone.trim() === "") {
+        toast("Please add your phone number in your profile before placing an order.");
+        if (window.location.pathname.includes("user.html")) {
+            setTimeout(() => {
+                const profileTabBtn = document.getElementById("tabBtnProfile");
+                if (profileTabBtn) profileTabBtn.click();
+            }, 1500);
+        }
+        return;
+    }
+
+    const modal = document.getElementById("checkoutModal");
+    if (modal) {
+        modal.classList.add("open");
+        const addressInput = document.getElementById("orderAddress");
+        if (addressInput && state.currentUser.city) {
+            addressInput.value = state.currentUser.city;
+        }
+    }
+}
+
+async function finalizeOrder() {
+    const addressInput = document.getElementById("orderAddress");
+    const address = addressInput ? addressInput.value.trim() : "";
+
+    if (!address) {
+        toast("Please provide a delivery address");
+        return;
+    }
+
+    const btn = document.getElementById("confirmOrderBtn");
+    if (btn) btn.disabled = true;
 
     const total = state.cart.reduce((s, c) => s + c.price * c.qty, 0);
     const order = {
         userId: state.currentUser.uid || state.currentUser.id,
         userName: state.currentUser.name,
+        userEmail: state.currentUser.email,
+        phone: state.currentUser.phone,
+        address: address, // Using the provided address/location
         items: state.cart.map((c) => ({
             name: c.name,
             qty: c.qty,
@@ -592,25 +632,31 @@ function placeOrder() {
             year: "numeric",
         }),
         status: "pending",
+        createdAt: Date.now(),
     };
 
-    // Save order to Firestore
-    createOrderInFirestore(order).then((result) => {
+    try {
+        const result = await createOrderInFirestore(order);
         if (result.success) {
             state.cart = [];
             updateCartUI();
             closeCart();
-            toast("Order placed successfully! Order ID: " + result.id);
+            const modal = document.getElementById("checkoutModal");
+            if (modal) modal.classList.remove("open");
+            toast("Order placed successfully!");
+            // If on user page, reload orders
+            if (typeof window.loadUserOrders === "function") window.loadUserOrders();
         } else {
             toast("Failed to place order: " + result.error);
         }
-    });
+    } catch (error) {
+        toast("Error placing order: " + error.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
-// Hint credentials removed for security
-
 // ========== EXPOSE TO GLOBAL SCOPE ==========
-// Make functions accessible from HTML onclick handlers and other modules
 window.state = state;
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -660,12 +706,8 @@ function initResponsiveNav() {
         if (icon) icon.className = open ? "fas fa-times" : "fas fa-bars";
     });
 
-    // Close when clicking a link
-    navLinks.querySelectorAll("a").forEach((a) =>
-        a.addEventListener("click", closeNav),
-    );
+    navLinks.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeNav));
 
-    // Close on outside click
     document.addEventListener("click", (e) => {
         if (!navLinks.classList.contains("open")) return;
         if (!navLinks.contains(e.target) && !navToggle.contains(e.target)) {
@@ -673,16 +715,8 @@ function initResponsiveNav() {
         }
     });
 
-    // Close on Escape
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && navLinks.classList.contains("open")) {
-            closeNav();
-        }
-    });
-
-    // Close on window resize above mobile breakpoint
-    window.addEventListener("resize", () => {
-        if (window.innerWidth > 900 && navLinks.classList.contains("open")) {
             closeNav();
         }
     });
@@ -690,65 +724,61 @@ function initResponsiveNav() {
 
 document.addEventListener("DOMContentLoaded", initResponsiveNav);
 
-// ========== ADMIN NAV (MOBILE TOGGLE) ==========
-function initAdminNav() {
-    const adminToggle = document.getElementById("adminNavToggle");
-    const adminButtons = document.querySelector(".admin-nav-buttons");
-    const adminSidebar = document.querySelector(".admin-sidebar");
-    if (!adminToggle || !adminButtons || !adminSidebar) return;
+// Initialize Checkout Modal Listeners
+document.addEventListener("DOMContentLoaded", () => {
+    const closeCheckout = document.getElementById("closeCheckout");
+    if (closeCheckout) {
+        closeCheckout.onclick = () => {
+            const modal = document.getElementById("checkoutModal");
+            if (modal) modal.classList.remove("open");
+        };
+    }
 
-    console.log("initAdminNav: elements found", { adminToggle, adminButtons, adminSidebar });
-    // Ensure icon reflects current open state on load
-    const isOpenOnLoad = adminSidebar.classList.contains("open");
-    adminToggle.setAttribute("aria-expanded", isOpenOnLoad ? "true" : "false");
-    const initialIcon = adminToggle.querySelector("i");
-    if (initialIcon) initialIcon.className = isOpenOnLoad ? "fas fa-times" : "fas fa-bars";
+    const confirmBtn = document.getElementById("confirmOrderBtn");
+    if (confirmBtn) {
+        confirmBtn.onclick = finalizeOrder;
+    }
 
-    adminToggle.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const open = adminSidebar.classList.toggle("open");
-        adminToggle.setAttribute("aria-expanded", open ? "true" : "false");
-        const icon = adminToggle.querySelector("i");
-        if (icon) icon.className = open ? "fas fa-times" : "fas fa-bars";
-        console.log("adminToggle clicked, open:", open);
-    });
+    const locationBtn = document.getElementById("getCurrentLocation");
+    if (locationBtn) {
+        locationBtn.onclick = () => {
+            const addressInput = document.getElementById("orderAddress");
+            fetchLocation(addressInput);
+        };
+    }
+});
 
-    // Close when clicking a nav button
-    adminButtons.querySelectorAll("button, a").forEach((el) =>
-        el.addEventListener("click", () => {
-            adminSidebar.classList.remove("open");
-            adminToggle.setAttribute("aria-expanded", "false");
-            const icon = adminToggle.querySelector("i");
-            if (icon) icon.className = "fas fa-bars";
-        }),
+async function fetchLocation(targetInput) {
+    if (!navigator.geolocation) {
+        toast("Geolocation is not supported by your browser");
+        return;
+    }
+
+    toast("Fetching your location...");
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                const data = await response.json();
+                const address = data.display_name || `Lat: ${lat}, Lon: ${lon}`;
+
+                if (targetInput) {
+                    targetInput.value = address;
+                }
+                toast("Location updated! 📍");
+            } catch (err) {
+                console.error("Geocoding error:", err);
+                if (targetInput) targetInput.value = `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                toast("Location set (coordinates only)");
+            }
+        },
+        (error) => toast("Unable to retrieve location: " + error.message)
     );
-
-    // Close on outside click
-    document.addEventListener("click", (e) => {
-        if (!adminSidebar.classList.contains("open")) return;
-        if (!adminSidebar.contains(e.target) && !adminToggle.contains(e.target)) {
-            adminSidebar.classList.remove("open");
-            adminToggle.setAttribute("aria-expanded", "false");
-            const icon = adminToggle.querySelector("i");
-            if (icon) icon.className = "fas fa-bars";
-        }
-    });
-
-    // Close on Escape
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && adminSidebar.classList.contains("open")) {
-            adminSidebar.classList.remove("open");
-            adminToggle.setAttribute("aria-expanded", "false");
-            const icon = adminToggle.querySelector("i");
-            if (icon) icon.className = "fas fa-bars";
-        }
-    });
 }
 
-document.addEventListener("DOMContentLoaded", initAdminNav);
-
-// ========== EXPORT FOR ES6 MODULES ==========
-// Export functions for other modules like landing.js to import
 export {
     state,
     openModal,
@@ -774,5 +804,6 @@ export {
     toast,
     genId,
     syncItemsFromFirestore,
-    handleGoogleLogin
+    handleGoogleLogin,
+    fetchLocation
 };

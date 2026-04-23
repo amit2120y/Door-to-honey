@@ -22,7 +22,7 @@ import { createUserInFirestore, getUserFromFirestore } from "./firebase-db.js";
 const ADMIN_EMAIL = "madhuluck8412@gmail.com";
 const ADMIN_PASSWORD = "madhu0099";
 
-export async function registerUserWithFirebase(name, email, password, city) {
+export async function registerUserWithFirebase(name, email, password, city, phone) {
     try {
         // Create auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -37,6 +37,7 @@ export async function registerUserWithFirebase(name, email, password, city) {
             name,
             email,
             city,
+            phone,
             role: "user",
             emailVerified: false,
             createdAt: new Date().toISOString(),
@@ -230,6 +231,7 @@ export async function loginWithGoogle() {
                 name: user.displayName || user.email.split("@")[0],
                 email: user.email,
                 city: "Not specified",
+                phone: user.phoneNumber || "",
                 role: "user",
                 emailVerified: true,
                 createdAt: new Date().toISOString(),

@@ -1,6 +1,6 @@
 // Import shared functions from common.js
-import { state, updateCartUI, addToCart, changeQty, placeOrder, closeModal, openCart, closeCart, logout, formatINR, toast, syncItemsFromFirestore } from "./common.js";
-import { getUserOrdersFromFirestore, createCustomOrderInFirestore, getUserCustomOrdersFromFirestore } from "../server/firebase-db.js";
+import { state, updateCartUI, addToCart, changeQty, placeOrder, closeModal, openCart, closeCart, logout, formatINR, toast, syncItemsFromFirestore, fetchLocation } from "./common.js";
+import { getUserOrdersFromFirestore, createCustomOrderInFirestore, getUserCustomOrdersFromFirestore, updateUserInFirestore } from "../server/firebase-db.js";
 
 // ========== USER PAGE ==========
 
@@ -178,7 +178,14 @@ function renderUserCustomOrders() {
         return;
     }
 
-    el.innerHTML = orders.map((o) => `
+    // Sort by createdAt descending
+    const sorted = [...orders].sort((a, b) => {
+        const timeA = a.createdAt || (a.date ? Date.parse(a.date) : 0);
+        const timeB = b.createdAt || (b.date ? Date.parse(b.date) : 0);
+        return timeB - timeA;
+    });
+
+    el.innerHTML = sorted.map((o) => `
     <div class="order-card custom-order-card">
       <div class="custom-order-icon"><i class="fas fa-pencil-ruler"></i></div>
       <div style="flex:1;">
@@ -204,6 +211,15 @@ async function submitCustomCakeOrder() {
         return;
     }
 
+    if (!state.currentUser.phone || state.currentUser.phone.trim() === "") {
+        toast("Please add your phone number in your profile before submitting a custom request.");
+        setTimeout(() => {
+            const profileTabBtn = document.getElementById("tabBtnProfile");
+            if (profileTabBtn) profileTabBtn.click();
+        }, 1500);
+        return;
+    }
+
     const occasion = document.getElementById("cakeOccasion")?.value;
     const flavor = document.getElementById("cakeFlavor")?.value;
     const weight = document.getElementById("cakeWeight")?.value;
@@ -212,11 +228,12 @@ async function submitCustomCakeOrder() {
     const budget = document.getElementById("cakeBudget")?.value;
     const deliveryDate = document.getElementById("cakeDeliveryDate")?.value;
     const phone = document.getElementById("cakePhone")?.value?.trim();
+    const address = document.getElementById("cakeAddress")?.value?.trim();
     const design = document.getElementById("cakeDesign")?.value?.trim();
     const notes = document.getElementById("cakeNotes")?.value?.trim();
 
-    if (!occasion || !flavor || !weight || !deliveryDate || !phone || !design) {
-        toast("Please fill all required fields (*)");
+    if (!occasion || !flavor || !weight || !deliveryDate || !phone || !design || !address) {
+        toast("Please fill all required fields (*) including Delivery Address");
         return;
     }
 
@@ -228,6 +245,7 @@ async function submitCustomCakeOrder() {
         userName: state.currentUser.name,
         userEmail: state.currentUser.email,
         phone,
+        address,
         occasion,
         flavor,
         weight,
@@ -238,6 +256,8 @@ async function submitCustomCakeOrder() {
         design,
         notes: notes || "",
         date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        status: "pending",
+        createdAt: Date.now(),
     };
 
     const result = await createCustomOrderInFirestore(customOrder);
@@ -266,18 +286,21 @@ function loadProfileSection() {
     const displayName = document.getElementById("displayName");
     const displayEmail = document.getElementById("displayEmail");
     const displayCity = document.getElementById("displayCity");
+    const displayPhone = document.getElementById("displayPhone");
 
     if (profileName) profileName.textContent = state.currentUser.name;
     if (profileEmail) profileEmail.textContent = state.currentUser.email;
     if (displayName) displayName.textContent = state.currentUser.name;
     if (displayEmail) displayEmail.textContent = state.currentUser.email;
     if (displayCity) displayCity.textContent = state.currentUser.city || "—";
+    if (displayPhone) displayPhone.textContent = state.currentUser.phone || "—";
 }
 
 function openEditProfileModal() {
     const nameInput = document.getElementById("editProfileName");
     const emailInput = document.getElementById("editProfileEmail");
     const cityInput = document.getElementById("editProfileCity");
+    const phoneInput = document.getElementById("editProfilePhone");
     const modal = document.getElementById("editProfileModal");
 
     if (!state.currentUser) return;
@@ -285,6 +308,7 @@ function openEditProfileModal() {
     if (nameInput) nameInput.value = state.currentUser.name;
     if (emailInput) emailInput.value = state.currentUser.email;
     if (cityInput) cityInput.value = state.currentUser.city || "";
+    if (phoneInput) phoneInput.value = state.currentUser.phone || "";
     if (modal) modal.classList.add("open");
 }
 
@@ -299,14 +323,16 @@ function saveProfileChanges() {
     const nameInput = document.getElementById("editProfileName");
     const emailInput = document.getElementById("editProfileEmail");
     const cityInput = document.getElementById("editProfileCity");
+    const phoneInput = document.getElementById("editProfilePhone");
 
-    if (!nameInput || !emailInput || !cityInput) return;
+    if (!nameInput || !emailInput || !cityInput || !phoneInput) return;
 
     const name = nameInput.value.trim();
     const email = emailInput.value.trim();
     const city = cityInput.value.trim();
+    const phone = phoneInput.value.trim();
 
-    if (!name || !email || !city) {
+    if (!name || !email || !city || !phone) {
         toast("Please fill all fields");
         return;
     }
@@ -315,9 +341,18 @@ function saveProfileChanges() {
     state.currentUser.name = name;
     state.currentUser.email = email;
     state.currentUser.city = city;
+    state.currentUser.phone = phone;
 
-    // Save to localStorage for persistence
+    // Save to localStorage
     localStorage.setItem("currentUser", JSON.stringify(state.currentUser));
+
+    // Save to Firestore
+    const uid = state.currentUser.uid || state.currentUser.id;
+    updateUserInFirestore(uid, { name, email, city, phone }).then(result => {
+        if (!result.success) {
+            console.error("Failed to update Firestore:", result.error);
+        }
+    });
 
     closeEditProfileModal();
     loadProfileSection();
@@ -339,6 +374,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     state.customOrders = [];
     loadUserPage().then(() => {
+        // Auto-fill phone and address if available
+        const cakePhone = document.getElementById("cakePhone");
+        if (cakePhone && state.currentUser.phone) {
+            cakePhone.value = state.currentUser.phone;
+        }
+
+        const cakeAddress = document.getElementById("cakeAddress");
+        if (cakeAddress && state.currentUser.city) {
+            cakeAddress.value = state.currentUser.city;
+        }
+
+        // Custom location button listener
+        const getCustomLocBtn = document.getElementById("getCustomLocation");
+        if (getCustomLocBtn) {
+            getCustomLocBtn.onclick = () => {
+                const target = document.getElementById("cakeAddress");
+                fetchLocation(target);
+            };
+        }
+
         // Check if we need to auto-open a tab (e.g. from landing page custom cake CTA)
         const pendingTab = sessionStorage.getItem("openTab");
         if (pendingTab) {

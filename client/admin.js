@@ -6,7 +6,7 @@ import {
     getAllCustomOrdersFromFirestore,
     updateCustomOrderStatusInFirestore,
 } from "../server/firebase-db.js";
-import { getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getDocs, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "../server/firebase-config.js";
 
 // ========== ADMIN PAGE ==========
@@ -64,27 +64,92 @@ function updateAdminStats() {
     renderDashOrders();
 }
 
-function renderDashOrders() {
-    const tbody = document.getElementById("dashOrdersTable");
-    if (!tbody) return;
+function createOrderCard(o) {
+    try {
+        const statusClass = `status-${o.status || 'pending'}`;
+        const items = Array.isArray(o.items) ? o.items : [];
+        const itemsList = items.map((i) => (i.name || 'Item') + " x" + (i.qty || 1)).join(", ");
+        
+        // Find item image
+        const firstItemName = items[0]?.name;
+        const itemData = state.items.find(i => i.name === firstItemName);
+        const itemImg = itemData ? itemData.image : 'images/honey1.jpeg';
+        
+        return `
+        <div class="admin-order-card">
+            <div class="admin-order-card-header">
+                <div>
+                    <h4 class="admin-order-card-title">${items[0]?.name || 'Cake Order'}</h4>
+                    <div class="admin-order-card-category">Pastry & Cakes</div>
+                </div>
+                <span class="admin-order-card-status ${statusClass}">${o.status || 'pending'}</span>
+            </div>
 
-    const recent = [...state.orders].reverse().slice(0, 5);
-    tbody.innerHTML =
-        recent
-            .map(
-                (o) => `
-    <tr>
-      <td><strong>${o.id}</strong></td>
-      <td>${o.userName}</td>
-      <td>${o.items.map((i) => i.name).join(", ")}</td>
-      <td><strong>${formatINR(o.total)}</strong></td>
-      <td><span class="status-badge badge-${o.status}">${o.status}</span></td>
-      <td>${o.status === "pending" ? `<button class="action-btn btn-accept" onclick="updateOrderStatus('${o.id}','accepted')">Accept</button><button class="action-btn btn-reject" onclick="updateOrderStatus('${o.id}','rejected')">Reject</button>` : "—"}</td>
-    </tr>
-  `,
-            )
-            .join("") ||
-        '<tr><td colspan="6" class="td-center-muted">No orders yet</td></tr>';
+            <div class="admin-order-card-section admin-card-user-box">
+                <div class="admin-card-user-details">
+                    <div class="admin-order-card-user-name">${o.userName || 'Anonymous'}</div>
+                    <span class="admin-order-card-user-sub">${o.userEmail || '—'}</span>
+                    <span class="admin-order-card-user-sub">${o.phone || '—'}</span>
+                </div>
+                <div class="admin-card-item-img">
+                    <img src="${itemImg}" alt="${items[0]?.name || 'Cake'}">
+                </div>
+            </div>
+
+            <div class="admin-order-card-details">
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Items:</span>
+                    <span class="admin-order-detail-val">${itemsList || 'No items listed'}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Address:</span>
+                    <span class="admin-order-detail-val">${o.address || '—'}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Amount:</span>
+                    <span class="admin-order-detail-val fw-700 honey-dark">${formatINR(o.total || 0)}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Date:</span>
+                    <span class="admin-order-detail-val">${o.date || '—'}</span>
+                </div>
+            </div>
+
+            <div class="admin-order-card-footer">
+                ${o.status === 'pending' ? `
+                    <div class="admin-order-actions">
+                        <button class="admin-order-action-btn btn-acc" onclick="updateOrderStatus('${o.id}','accepted')">Accept Order</button>
+                        <button class="admin-order-action-btn btn-rej" onclick="updateOrderStatus('${o.id}','rejected')">Reject</button>
+                    </div>
+                ` : ''}
+                <button class="admin-order-view-btn">View Details</button>
+            </div>
+        </div>
+        `;
+    } catch (err) {
+        console.error("Error rendering order card:", err, o);
+        return `<div class="admin-order-card" style="border:1px solid red; padding:10px;">Error rendering order ID: ${o.id}</div>`;
+    }
+}
+
+function renderDashOrders() {
+    const grid = document.getElementById("dashOrdersGrid");
+    if (!grid) return;
+
+    if (!state.orders || state.orders.length === 0) {
+        grid.innerHTML = '<p class="td-center-muted" style="grid-column: 1/-1; padding: 40px; text-align: center;">No orders yet. They will appear here once placed.</p>';
+        return;
+    }
+
+    // Sort by createdAt descending (newest first)
+    const sorted = [...state.orders].sort((a, b) => {
+        const timeA = a.createdAt || (a.date ? Date.parse(a.date) : 0);
+        const timeB = b.createdAt || (b.date ? Date.parse(b.date) : 0);
+        return timeB - timeA;
+    });
+
+    const recent = sorted.slice(0, 5);
+    grid.innerHTML = recent.map((o) => createOrderCard(o)).join("");
 }
 
 function renderAdminItems() {
@@ -113,27 +178,22 @@ function renderAdminItems() {
 }
 
 function renderAdminOrders() {
-    const tbody = document.getElementById("adminOrdersTable");
-    if (!tbody) return;
+    const grid = document.getElementById("adminOrdersGrid");
+    if (!grid) return;
 
-    tbody.innerHTML =
-        [...state.orders]
-            .reverse()
-            .map(
-                (o) => `
-    <tr>
-      <td><strong>${o.id}</strong></td>
-      <td>${o.userName}</td>
-      <td>${o.items.map((i) => i.name + " x" + i.qty).join(", ")}</td>
-      <td><strong>${formatINR(o.total)}</strong></td>
-      <td>${o.date}</td>
-      <td><span class="status-badge badge-${o.status}">${o.status}</span></td>
-      <td>${o.status === "pending" ? `<button class="action-btn btn-accept" onclick="updateOrderStatus('${o.id}','accepted')">Accept</button><button class="action-btn btn-reject" onclick="updateOrderStatus('${o.id}','rejected')">Reject</button>` : "—"}</td>
-    </tr>
-  `,
-            )
-            .join("") ||
-        '<tr><td colspan="7" class="td-center-muted">No orders yet</td></tr>';
+    if (!state.orders || state.orders.length === 0) {
+        grid.innerHTML = '<p class="td-center-muted" style="grid-column: 1/-1; padding: 40px; text-align: center;">No orders yet.</p>';
+        return;
+    }
+
+    // Sort by createdAt descending (newest first)
+    const sorted = [...state.orders].sort((a, b) => {
+        const timeA = a.createdAt || (a.date ? Date.parse(a.date) : 0);
+        const timeB = b.createdAt || (b.date ? Date.parse(b.date) : 0);
+        return timeB - timeA;
+    });
+
+    grid.innerHTML = sorted.map((o) => createOrderCard(o)).join("");
 }
 
 function updateOrderStatus(id, status) {
@@ -232,10 +292,26 @@ function clearAddItemForm() {
     if (preview) preview.style.display = "none";
 }
 
-function convertImageToBase64(file, options = {}) {
+async function convertImageToBase64(file, options = {}) {
     const maxWidth = options.maxWidth || 900;
     const maxHeight = options.maxHeight || 900;
     const maxChars = options.maxChars || 650000;
+
+    let fileToProcess = file;
+
+    // Check for HEIC/HEIF and convert if heic2any is available
+    if ((file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) && typeof heic2any === "function") {
+        try {
+            const converted = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.7
+            });
+            fileToProcess = Array.isArray(converted) ? converted[0] : converted;
+        } catch (err) {
+            console.error("HEIC conversion failed, attempting standard load:", err);
+        }
+    }
 
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -254,7 +330,7 @@ function convertImageToBase64(file, options = {}) {
 
                 const ctx = canvas.getContext("2d");
                 if (!ctx) {
-                    reject(new Error("Could not process image"));
+                    fallbackToRaw();
                     return;
                 }
 
@@ -276,12 +352,24 @@ function convertImageToBase64(file, options = {}) {
                 resolve(dataUrl);
             };
 
-            img.onerror = () => reject(new Error("Invalid image file"));
+            img.onerror = () => {
+                // If it's a format like HEIC that browser can't render but we still want to accept it
+                fallbackToRaw();
+            };
+
+            function fallbackToRaw() {
+                if (reader.result.length <= maxChars) {
+                    resolve(reader.result);
+                } else {
+                    reject(new Error("This image format is not natively supported for resizing by your browser and is too large for database storage (> 500KB). Please try a JPG or PNG."));
+                }
+            }
+
             img.src = reader.result;
         };
 
         reader.onerror = () => reject(new Error("Failed to read image file"));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(fileToProcess);
     });
 }
 
@@ -482,11 +570,14 @@ function setupDragDropZone() {
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
             const file = files[0];
-            if (file.type.startsWith("image/")) {
+            const isImage = file.type.startsWith("image/") || 
+                          /\.(heic|heif|webp|svg|avif)$/i.test(file.name);
+            
+            if (isImage) {
                 fileInput.files = files;
                 showImagePreview(file);
             } else {
-                toast("Please drop an image file");
+                toast("Please drop a valid image file");
             }
         }
     });
@@ -527,7 +618,144 @@ function showImagePreview(file) {
 document.addEventListener("DOMContentLoaded", function () {
     loadAdminPage();
     setupDragDropZone();
+    requestNotificationPermission();
+    listenForNewOrders();
 });
+
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("Notification permission granted.");
+                }
+            });
+        }
+    }
+}
+
+let lastNotificationTime = Date.now();
+
+function listenForNewOrders() {
+    if (!db) return;
+
+    // Listen for regular orders
+    onSnapshot(collection(db, "orders"), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+                const order = change.doc.data();
+                // Parse createdAt if it's a string (ISO)
+                const orderTime = typeof order.createdAt === 'string' ? Date.parse(order.createdAt) : order.createdAt;
+                
+                // Check if the order is NEW (created after page load)
+                if (orderTime > lastNotificationTime) {
+                    showOrderNotification("New Regular Order!", `From: ${order.userName || 'Customer'}`);
+                    loadAllOrdersFromFirestore(); // Refresh UI
+                }
+            }
+        });
+    });
+
+    // Listen for custom requests
+    onSnapshot(collection(db, "custom_orders"), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+                const order = change.doc.data();
+                const orderTime = typeof order.createdAt === 'string' ? Date.parse(order.createdAt) : order.createdAt;
+
+                if (orderTime > lastNotificationTime) {
+                    showOrderNotification("New Custom Cake Request!", `${order.userName || 'Customer'} is requesting a ${order.occasion} cake.`);
+                    loadAdminCustomOrders(); // Refresh UI
+                }
+            }
+        });
+    });
+}
+
+function showOrderNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, {
+            body: body,
+            icon: "images/honey1.jpeg"
+        });
+        
+        // Also play a subtle sound if possible
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+        audio.play().catch(e => console.log("Audio play blocked by browser policy"));
+    }
+    toast(title + " " + body);
+}
+
+function createCustomRequestCard(o) {
+    try {
+        const statusClass = `status-${o.status || 'pending'}`;
+        
+        return `
+        <div class="admin-order-card">
+            <div class="admin-order-card-header">
+                <div>
+                    <h4 class="admin-order-card-title">${o.occasion} Request</h4>
+                    <div class="admin-order-card-category">${o.flavor} · ${o.weight}</div>
+                </div>
+                <span class="admin-order-card-status ${statusClass}">${o.status || 'pending'}</span>
+            </div>
+
+            <div class="admin-order-card-section admin-card-user-box">
+                <div class="admin-card-user-details">
+                    <div class="admin-order-card-user-name">${o.userName || 'Anonymous'}</div>
+                    <span class="admin-order-card-user-sub">${o.userEmail || '—'}</span>
+                    <span class="admin-order-card-user-sub">${o.phone || '—'}</span>
+                </div>
+                <div class="admin-card-item-img" style="background: var(--cream); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--honey-dark);">
+                    <i class="fas fa-magic"></i>
+                </div>
+            </div>
+
+            <div class="admin-order-card-details">
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Specifications:</span>
+                    <span class="admin-order-detail-val">${o.tiers} Tier(s) · ${o.dietary}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Delivery Date:</span>
+                    <span class="admin-order-detail-val">${o.deliveryDate || '—'}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Budget:</span>
+                    <span class="admin-order-detail-val fw-700 honey-dark">${o.budget || 'Not specified'}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Address:</span>
+                    <span class="admin-order-detail-val">${o.address || '—'}</span>
+                </div>
+                <div class="admin-order-detail-item">
+                    <span class="admin-order-detail-label">Design Idea:</span>
+                    <span class="admin-order-detail-val">${o.design || '—'}</span>
+                </div>
+            </div>
+
+            <div class="admin-order-card-footer">
+                ${o.status === 'pending' ? `
+                    <div class="admin-order-actions">
+                        <button class="admin-order-action-btn btn-acc" onclick="updateCustomOrderStatus('${o.id}','accepted')">Accept Request</button>
+                        <button class="admin-order-action-btn btn-rej" onclick="updateCustomOrderStatus('${o.id}','rejected')">Reject</button>
+                    </div>
+                ` : ''}
+                <button class="admin-order-view-btn" onclick="viewCustomOrderDetails('${o.id}')">View Full Notes</button>
+            </div>
+            
+            <div id="detail-${o.id}" class="admin-order-detail-dropdown" style="display:none; padding:15px; background:var(--cream); border-radius:12px; margin-top:10px; font-size:13px; line-height:1.5;">
+                 <strong>Additional Notes:</strong><br>
+                 ${o.notes || 'No additional notes provided.'}
+                 ${o.adminNote ? `<br><br><strong style="color:var(--rose);">Rejection Reason:</strong><br>${o.adminNote}` : ''}
+            </div>
+        </div>
+        `;
+    } catch (err) {
+        console.error("Error rendering custom request card:", err, o);
+        return `<div class="admin-order-card" style="border:1px solid red; padding:10px;">Error rendering request ID: ${o.id}</div>`;
+    }
+}
 
 // ========== CUSTOM CAKE ORDERS (ADMIN) ==========
 async function loadAdminCustomOrders() {
@@ -536,6 +764,7 @@ async function loadAdminCustomOrders() {
         const orders = await getAllCustomOrdersFromFirestore();
         state.customOrders = orders;
         renderAdminCustomOrders();
+        updateAdminStats();
     } catch (error) {
         console.error("Error loading custom orders:", error);
         toast("Failed to load custom orders");
@@ -543,52 +772,30 @@ async function loadAdminCustomOrders() {
 }
 
 function renderAdminCustomOrders() {
-    const tbody = document.getElementById("adminCustomOrdersTable");
-    if (!tbody) return;
+    const grid = document.getElementById("adminCustomOrdersGrid");
+    if (!grid) return;
 
     const orders = state.customOrders || [];
     if (orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="admin-table-td-center">No custom cake requests yet.</td></tr>';
+        grid.innerHTML = '<p class="td-center-muted" style="grid-column: 1/-1; padding: 40px; text-align: center;">No custom cake requests yet.</p>';
         return;
     }
 
-    tbody.innerHTML = orders.map((o) => `
-    <tr>
-      <td><strong style="font-size:11px;color:var(--text-muted);">${o.id.slice(0,10)}...</strong></td>
-      <td>
-        <strong>${o.userName}</strong><br>
-        <span style="font-size:12px;color:var(--text-muted);">${o.phone}</span>
-      </td>
-      <td>${o.occasion}</td>
-      <td>${o.flavor}</td>
-      <td>${o.weight} · ${o.tiers}T · ${o.dietary}</td>
-      <td>${o.deliveryDate}</td>
-      <td>${o.budget || '—'}</td>
-      <td><span class="status-badge badge-${o.status}">${o.status}</span></td>
-      <td>
-        ${o.status === 'pending' ? `
-          <button class="action-btn btn-accept" onclick="updateCustomOrderStatus('${o.id}','accepted')">Accept</button>
-          <button class="action-btn btn-reject" onclick="updateCustomOrderStatus('${o.id}','rejected')">Reject</button>
-        ` : '—'}
-        <button class="action-btn btn-edit" onclick="viewCustomOrderDetails('${o.id}')" title="View Details"><i class="fas fa-eye"></i></button>
-      </td>
-    </tr>
-    <tr id="detail-${o.id}" style="display:none;">
-      <td colspan="9" class="custom-order-detail-row">
-        <div class="custom-order-detail">
-          <div><strong><i class="fas fa-paint-brush"></i> Design:</strong> ${o.design || '—'}</div>
-          ${o.notes ? `<div style="margin-top:8px;"><strong><i class="fas fa-sticky-note"></i> Notes:</strong> ${o.notes}</div>` : ''}
-          ${o.userEmail ? `<div style="margin-top:8px;"><strong><i class="fas fa-envelope"></i> Email:</strong> ${o.userEmail}</div>` : ''}
-          <div style="margin-top:8px;"><strong><i class="fas fa-calendar-alt"></i> Submitted:</strong> ${o.date || o.createdAt?.slice(0,10) || '—'}</div>
-        </div>
-      </td>
-    </tr>
-  `).join("");
+    // Sort by createdAt descending (newest first)
+    const sorted = [...orders].sort((a, b) => {
+        const timeA = a.createdAt || (a.date ? Date.parse(a.date) : 0);
+        const timeB = b.createdAt || (b.date ? Date.parse(b.date) : 0);
+        return timeB - timeA;
+    });
+
+    grid.innerHTML = sorted.map((o) => createCustomRequestCard(o)).join("");
 }
 
 function viewCustomOrderDetails(id) {
-    const row = document.getElementById('detail-' + id);
-    if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+    const detailEl = document.getElementById('detail-' + id);
+    if (detailEl) {
+        detailEl.style.display = detailEl.style.display === 'none' ? 'block' : 'none';
+    }
 }
 
 async function updateCustomOrderStatus(id, status) {
@@ -628,3 +835,4 @@ window.renderAdminOrders = renderAdminOrders;
 window.renderDashOrders = renderDashOrders;
 window.setupDragDropZone = setupDragDropZone;
 window.showImagePreview = showImagePreview;
+window.loadAdminPage = loadAdminPage;

@@ -170,6 +170,17 @@
                                 <label class="custom-form-label"><i class="fas fa-phone"></i> Contact Phone *</label>
                                 <input type="tel" id="cakePhone" class="custom-form-input" placeholder="+91 98765 43210" required pattern="[0-9+\s\-]{10,15}">
                             </div>
+                            <!-- Address -->
+                            <div class="custom-form-group custom-form-full" style="margin-top: 10px;">
+                                <label class="custom-form-label"><i class="fas fa-map-marker-alt"></i> Delivery Address *</label>
+                                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                    <textarea id="cakeAddress" class="custom-form-input" rows="2" placeholder="Enter full delivery address..." style="flex: 1; min-height: 80px;"></textarea>
+                                    <button type="button" id="getCustomLocation" class="btn-outline" style="padding: 10px; height: 80px; width: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; gap: 5px;" title="Use Current Location">
+                                        <i class="fas fa-location-arrow" style="font-size: 18px;"></i>
+                                        <span>Current</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <!-- Design Description - full width -->
                         <div class="custom-form-group custom-form-full">
@@ -219,6 +230,10 @@
                                 <label>City</label>
                                 <p id="displayCity">—</p>
                             </div>
+                            <div class="profile-field">
+                                <label>Phone Number</label>
+                                <p id="displayPhone">—</p>
+                            </div>
                         </div>
                         <button class="btn-primary profile-edit-btn" onclick="openEditProfileModal()"><i class="fas fa-edit"></i> Edit Profile</button>
                     </div>
@@ -257,10 +272,37 @@
                     <label class="admin-label">City</label>
                     <input type="text" id="editProfileCity" placeholder="Your city" class="user-input">
                 </div>
+                <div>
+                    <label class="admin-label">Phone Number</label>
+                    <input type="tel" id="editProfilePhone" placeholder="Your phone number" class="user-input">
+                </div>
                 <div class="modal-actions-row">
                     <button class="btn-primary modal-save-btn" onclick="saveProfileChanges()"><i class="fas fa-check"></i> Save Changes</button>
                     <button class="btn-outline modal-cancel-btn" onclick="closeEditProfileModal()">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHECKOUT MODAL -->
+    <div id="checkoutModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+            <span class="modal-close" id="closeCheckout">&times;</span>
+            <div class="modal-title">Complete Your Order</div>
+            <div class="modal-sub">Please provide your delivery address below.</div>
+            
+            <div class="modal-body" style="margin-top: 20px;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <textarea id="orderAddress" placeholder="Enter your full delivery address here..." style="width: 100%; min-height: 100px; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; font-family: inherit; resize: none;"></textarea>
+                </div>
+                
+                <button type="button" id="getCurrentLocation" style="width: 100%; padding: 10px; background: rgba(195,130,31,0.08); border: 1px dashed var(--honey); color: var(--honey-dark); border-radius: 10px; margin-bottom: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600;">
+                    <i class="fas fa-location-arrow"></i> Use Current Location
+                </button>
+
+                <button id="confirmOrderBtn" class="form-submit" style="background: var(--brown);">
+                    <i class="fas fa-shopping-bag"></i> Confirm & Place Order
+                </button>
             </div>
         </div>
     </div>
