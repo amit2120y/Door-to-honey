@@ -7,7 +7,8 @@ import {
     watchAuthState,
     resendVerificationEmail,
     resetPasswordWithFirebase,
-    loginWithGoogle
+    loginWithGoogle,
+    checkRedirectResult
 } from "../server/firebase-auth.js";
 import {
     createOrderInFirestore,
@@ -143,6 +144,28 @@ if (savedUser) {
         localStorage.removeItem("currentUser");
     }
 }
+
+// Check if we just returned from a Google sign-in redirect
+checkRedirectResult().then(result => {
+    if (result && result.success && result.user) {
+        state.currentUser = result.user;
+        const userName = result.user.name ? result.user.name.split(" ")[0] : "User";
+        toast("Welcome, " + userName + "!");
+        setTimeout(() => {
+            if (result.user.role === "admin") {
+                if (!window.location.href.includes("admin.html")) {
+                    window.location.href = "admin.html";
+                }
+            } else {
+                if (!window.location.href.includes("user.html")) {
+                    window.location.href = "user.html";
+                }
+            }
+        }, 500);
+    } else if (result && result.error) {
+        toast("Login failed: " + result.error);
+    }
+});
 
 // ========== UTILS ==========
 function toast(msg) {
@@ -403,6 +426,10 @@ function handleRegister() {
 
 function handleGoogleLogin() {
     loginWithGoogle().then((result) => {
+        if (result.success && result.redirecting) {
+            toast("Redirecting to Google for sign in...");
+            return;
+        }
         if (result.success && result.user) {
             state.currentUser = result.user;
             closeModal();

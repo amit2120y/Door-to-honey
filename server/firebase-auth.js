@@ -9,13 +9,16 @@ import {
     sendPasswordResetEmail,
     GoogleAuthProvider,
     signInWithPopup,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    browserPopupRedirectResolver,
+    signInWithRedirect,
+    getRedirectResult
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
     collection,
     query,
     where,
     getDocs,
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { db } from "./firebase-config.js";
 import { createUserInFirestore, getUserFromFirestore } from "./firebase-db.js";
 
@@ -217,7 +220,7 @@ export function watchAuthState(callback) {
 export async function loginWithGoogle() {
     try {
         const provider = new GoogleAuthProvider();
-        const userCredential = await signInWithPopup(auth, provider);
+        const userCredential = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
         const user = userCredential.user;
 
         // Get user data from Firestore
@@ -242,7 +245,46 @@ export async function loginWithGoogle() {
 
         return { success: true, user: userData };
     } catch (error) {
+        if (error.code === 'auth/popup-blocked') {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithRedirect(auth, provider);
+                return { success: true, redirecting: true };
+            } catch (redirectErr) {
+                console.error("Redirect login error:", redirectErr);
+                return { success: false, error: redirectErr.message };
+            }
+        }
         console.error("Google login error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function checkRedirectResult() {
+    try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+            const user = result.user;
+            let userData = await getUserFromFirestore(user.uid);
+            if (!userData) {
+                userData = {
+                    id: user.uid,
+                    uid: user.uid,
+                    name: user.displayName || user.email.split("@")[0],
+                    email: user.email,
+                    city: "Not specified",
+                    phone: user.phoneNumber || "",
+                    role: "user",
+                    emailVerified: true,
+                    createdAt: new Date().toISOString(),
+                };
+                await createUserInFirestore(user.uid, userData);
+            }
+            return { success: true, user: userData };
+        }
+        return { success: false, noRedirect: true };
+    } catch (error) {
+        console.error("Redirect result error:", error);
         return { success: false, error: error.message };
     }
 }
